@@ -96,7 +96,7 @@ def evaluate_quotes(req: QuotationRequest):
         try:
             import urllib.request
             key = "AIzaSy" + "D8NDvhYCIp61sx8fvOpfRyeyb2gXImI50"
-            url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={key}"
+            url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key={key}"
             payload = json.dumps({"contents": [{"parts": [{"text": prompt}]}]}).encode('utf-8')
             r = urllib.request.urlopen(urllib.request.Request(url, data=payload, headers={'Content-Type': 'application/json'}))
             txt = json.loads(r.read().decode('utf-8'))['candidates'][0]['content']['parts'][0]['text']
@@ -191,7 +191,7 @@ def financial_insights():
     """
     
     try:
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={key_part_1+key_part_2}"
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key={key_part_1+key_part_2}"
         payload = json.dumps({"contents": [{"parts": [{"text": prompt}]}]}).encode('utf-8')
         r = urllib.request.urlopen(urllib.request.Request(url, data=payload, headers={'Content-Type': 'application/json'}))
         txt = json.loads(r.read().decode('utf-8'))['candidates'][0]['content']['parts'][0]['text']
@@ -223,7 +223,7 @@ def chat_copilot(req: ChatRequest):
         
         import urllib.request
         import json
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={key_part_1+key_part_2}"
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key={key_part_1+key_part_2}"
         payload = json.dumps({"contents": [{"parts": [{"text": prompt}]}]}).encode('utf-8')
         r = urllib.request.urlopen(urllib.request.Request(url, data=payload, headers={'Content-Type': 'application/json'}))
         txt = json.loads(r.read().decode('utf-8'))['candidates'][0]['content']['parts'][0]['text']

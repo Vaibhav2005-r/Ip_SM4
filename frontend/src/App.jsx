@@ -323,6 +323,111 @@ const ActivityIcon = (props) => <svg {...props} xmlns="http://www.w3.org/2000/sv
 // ==========================================
 // 4. INTELLIGENT INVENTORY PAGE
 // ==========================================
+// Per-row inline action panel
+const ProductRow = ({ p, i, restockProduct, recordSale }) => {
+  const [expanded, setExpanded] = useState(false);
+  const [restockQty, setRestockQty] = useState('');
+  const [sellQty, setSellQty] = useState('');
+  const [aiLoading, setAiLoading] = useState(false);
+
+  const fetchAiRestock = async () => {
+    setAiLoading(true);
+    try {
+      const r = await fetch('http://localhost:8000/api/ai/chat', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ query: `For product "${p.name}" in category "${p.category}" with ${p.stock} units at ₹${p.price}, respond with ONLY a single integer — the recommended restock quantity. No explanation.` })
+      });
+      const d = await r.json();
+      const num = parseInt(d.response.match(/\d+/)?.[0]);
+      if (!isNaN(num)) setRestockQty(String(num));
+    } catch (e) { setRestockQty('25'); }
+    setAiLoading(false);
+  };
+
+  return (
+    <>
+      <motion.tr
+        initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.03 }}
+        className="border-b border-gray-50 hover:bg-indigo-50/50 transition-colors cursor-pointer"
+        onClick={() => setExpanded(!expanded)}
+      >
+        <td className="py-4 font-bold text-gray-800 flex items-center gap-3">
+           <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-100 to-purple-100 text-indigo-600 flex items-center justify-center font-bold text-xs">{p.name.charAt(0)}</div>
+           {p.name}
+        </td>
+        <td className="py-4 text-gray-500"><span className="bg-gray-100 px-3 py-1 rounded-full text-xs font-semibold">{p.category}</span></td>
+        <td className="py-4 font-mono font-semibold text-gray-700">₹{parseFloat(p.price).toFixed(2)}</td>
+        <td className="py-4">
+           {(p.stock||0) > 10 ? (
+             <span className="flex items-center gap-1.5 text-emerald-600 bg-emerald-50 px-3 py-1 rounded-full w-max text-xs font-bold border border-emerald-100"><CheckCircle size={14} /> {p.stock} In Stock</span>
+           ) : (
+             <span className="flex items-center gap-1.5 text-rose-600 bg-rose-50 px-3 py-1 rounded-full w-max text-xs font-bold border border-rose-200 animate-pulse"><AlertTriangle size={14} /> {p.stock||0} Low Stock</span>
+           )}
+        </td>
+        <td className="py-4 text-right">
+          <span className="text-xs text-indigo-400 font-bold">{expanded ? '▲ Close' : '▼ Actions'}</span>
+        </td>
+      </motion.tr>
+
+      <AnimatePresence>
+        {expanded && (
+          <motion.tr initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+            <td colSpan="5" className="pb-4">
+              <motion.div
+                initial={{ y: -8, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: -8, opacity: 0 }}
+                className="bg-gradient-to-r from-slate-50 to-indigo-50/50 border border-indigo-100 rounded-2xl p-5 flex flex-col sm:flex-row gap-6"
+                onClick={e => e.stopPropagation()}
+              >
+                {/* Restock Panel */}
+                <div className="flex-1 space-y-3">
+                  <h4 className="text-xs font-bold text-gray-500 uppercase tracking-wider flex items-center gap-1.5"><TrendingUp size={13} /> Restock Units</h4>
+                  <div className="flex gap-2">
+                    <input type="number" min="1" placeholder="Qty" value={restockQty} onChange={e => setRestockQty(e.target.value)}
+                      className="w-24 px-3 py-2 bg-white border border-gray-200 rounded-xl text-sm font-bold outline-none focus:ring-2 focus:ring-emerald-400" />
+                    <button onClick={fetchAiRestock} disabled={aiLoading}
+                      className="px-3 py-2 bg-indigo-100 text-indigo-700 rounded-xl text-xs font-bold hover:bg-indigo-200 transition-all flex items-center gap-1 disabled:opacity-50">
+                      <Bot size={12} /> {aiLoading ? '...' : 'AI Suggest'}
+                    </button>
+                    <button
+                      onClick={() => { if(restockQty > 0) { restockProduct(p.name, restockQty); setExpanded(false); } }}
+                      className="flex-1 px-4 py-2 bg-emerald-600 text-white rounded-xl text-xs font-bold hover:bg-emerald-700 transition-all">
+                      + Restock {restockQty ? `(${restockQty})` : ''}
+                    </button>
+                  </div>
+                  {restockQty && <p className="text-xs text-gray-400">Will increase stock from <b>{p.stock||0}</b> → <b className="text-emerald-600">{(p.stock||0) + parseInt(restockQty||0)}</b></p>}
+                </div>
+
+                <div className="w-px bg-gray-200 hidden sm:block" />
+
+                {/* Sell Panel */}
+                <div className="flex-1 space-y-3">
+                  <h4 className="text-xs font-bold text-gray-500 uppercase tracking-wider flex items-center gap-1.5"><DollarSign size={13} /> Record Sale</h4>
+                  <div className="flex gap-2">
+                    <input type="number" min="1" max={p.stock} placeholder="Qty to sell" value={sellQty} onChange={e => setSellQty(e.target.value)}
+                      className="w-28 px-3 py-2 bg-white border border-gray-200 rounded-xl text-sm font-bold outline-none focus:ring-2 focus:ring-rose-400" />
+                    <button
+                      onClick={() => { if(sellQty > 0 && parseInt(sellQty) <= (p.stock||0)) { recordSale(p.name, sellQty); setSellQty(''); setExpanded(false); } }}
+                      className="flex-1 px-4 py-2 bg-rose-600 text-white rounded-xl text-xs font-bold hover:bg-rose-700 transition-all">
+                      − Sell {sellQty ? `(${sellQty})` : ''}
+                    </button>
+                  </div>
+                  {sellQty > 0 && (
+                    <p className="text-xs text-gray-400">
+                      Revenue: <span className="font-bold text-indigo-600">₹{(sellQty * parseFloat(p.price||0)).toLocaleString('en-IN')}</span>
+                      {parseInt(sellQty) > (p.stock||0) && <span className="text-rose-500 ml-2 font-bold">⚠ Exceeds stock!</span>}
+                    </p>
+                  )}
+                </div>
+              </motion.div>
+            </td>
+          </motion.tr>
+        )}
+      </AnimatePresence>
+    </>
+  );
+};
+
 const InventoryPage = () => {
   const { products, recordSale, restockProduct, createProduct } = useContext(DataContext);
   const [searchTerm, setSearchTerm] = useState('');
@@ -336,7 +441,7 @@ const InventoryPage = () => {
       <div className="flex justify-between items-center mt-4">
         <div>
            <h1 className="text-3xl font-extrabold text-[#0a0a0a] tracking-tight">Product Matrix</h1>
-           <p className="text-gray-500 font-medium">Manage and track your global entities.</p>
+           <p className="text-gray-500 font-medium">Click any row to expand Restock / Sell actions with AI suggestions.</p>
         </div>
         <button onClick={() => setShowModal(true)} className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-6 py-3 rounded-xl font-bold shadow-lg shadow-blue-500/30 hover:scale-105 transition-all flex items-center gap-2 cursor-pointer">
            <Package size={18} /> Add Product
@@ -382,42 +487,13 @@ const InventoryPage = () => {
                </tr>
              </thead>
              <tbody className="text-sm">
-               {filtered.map((p, i) => (
-                 <motion.tr 
-                   initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}
-                   key={p.id} className="border-b border-gray-50 hover:bg-indigo-50/50 transition-colors group"
-                 >
-                   <td className="py-4 font-bold text-gray-800 flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-indigo-100 to-purple-100 text-indigo-600 flex items-center justify-center font-bold text-xs">{p.name.charAt(0)}</div>
-                      {p.name}
-                   </td>
-                   <td className="py-4 text-gray-500"><span className="bg-gray-100 px-3 py-1 rounded-full text-xs font-semibold">{p.category}</span></td>
-                   <td className="py-4 font-mono font-semibold text-gray-700">₹{parseFloat(p.price).toFixed(2)}</td>
-                   <td className="py-4">
-                      {p.stock > 10 ? (
-                        <span className="flex items-center gap-1.5 text-emerald-600 bg-emerald-50 px-3 py-1 rounded-full w-max text-xs font-bold border border-emerald-100">
-                           <CheckCircle size={14} /> {p.stock} In Stock
-                        </span>
-                      ) : (
-                        <span className="flex items-center gap-1.5 text-rose-600 bg-rose-50 px-3 py-1 rounded-full w-max text-xs font-bold border border-rose-200 animate-pulse">
-                           <AlertTriangle size={14} /> {p.stock} Low Stock
-                        </span>
-                      )}
-                   </td>
-                   <td className="py-4 text-right flex justify-end gap-2">
-                      <button onClick={() => restockProduct(p.name, 50)} className="opacity-0 group-hover:opacity-100 px-3 py-1.5 bg-white border border-gray-200 rounded-lg text-xs font-bold text-emerald-600 hover:bg-emerald-50 hover:border-emerald-200 transition-all shadow-sm">
-                        + Restock
-                      </button>
-                      <button onClick={() => recordSale(p.name, 1)} className="opacity-0 group-hover:opacity-100 px-3 py-1.5 bg-white border border-gray-200 rounded-lg text-xs font-bold text-indigo-600 hover:bg-indigo-50 hover:border-indigo-200 transition-all shadow-sm">
-                        - Sell
-                      </button>
-                   </td>
-                 </motion.tr>
-               ))}
-               {filtered.length === 0 && (
-                 <tr><td colSpan="5" className="text-center py-12 text-gray-400">No products found.</td></tr>
-               )}
-             </tbody>
+                {filtered.map((p, i) => (
+                  <ProductRow key={p.id} p={p} i={i} restockProduct={restockProduct} recordSale={recordSale} />
+                ))}
+                {filtered.length === 0 && (
+                  <tr><td colSpan="5" className="text-center py-12 text-gray-400">No products found.</td></tr>
+                )}
+              </tbody>
            </table>
          </div>
       </div>

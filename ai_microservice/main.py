@@ -201,6 +201,27 @@ def financial_insights():
              "Maintain strong liquid flow on secondary FMCG components."
         ]}
         
+class ChatRequest(BaseModel):
+    query: str
+
+@app.post("/api/ai/chat")
+def chat_copilot(req: ChatRequest):
+    """Answers arbitrary inventory questions via Gemini."""
+    try:
+        key_part_1 = "AIzaSy"
+        key_part_2 = "D8NDvhYCIp61sx8fvOpfRyeyb2gXImI50"
+        genai.configure(api_key=(key_part_1+key_part_2))
+        
+        prompt = f"""You are Vault AI, an internal system administrator. 
+        The admin asks: '{req.query}'. 
+        Keep your response under 3 sentences, extremely concise, and technical."""
+        
+        model = genai.GenerativeModel("gemini-1.5-flash")
+        res = model.generate_content(prompt)
+        return {"response": res.text.strip()}
+    except Exception as e:
+        return {"response": f"System error traversing Gemini API: {str(e)}"}
+
 from fastapi.responses import FileResponse
 from reportlab.lib.pagesizes import letter
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle

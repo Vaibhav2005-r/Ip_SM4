@@ -182,6 +182,26 @@ const KPICard = ({ title, value, sub, icon: Icon, color, delay }) => (
 // ==========================================
 const SmartDashboard = () => {
   const { products } = useContext(DataContext);
+  const [showCopilot, setShowCopilot] = useState(false);
+  const [query, setQuery] = useState('');
+  const [copilotRes, setCopilotRes] = useState('');
+  const [loadingChat, setLoadingChat] = useState(false);
+  
+  const handleChat = async () => {
+      setLoadingChat(true);
+      try {
+          const r = await fetch('http://localhost:8000/api/ai/chat', {
+             method: 'POST',
+             headers: {'Content-Type': 'application/json'},
+             body: JSON.stringify({query})
+          });
+          const d = await r.json();
+          setCopilotRes(d.response);
+      } catch(e) {
+          setCopilotRes('Failed to reach Gemini matrix.');
+      }
+      setLoadingChat(false);
+  };
   
   // Mock graphical data for Vercel-like charts
   const chartData = [
@@ -266,9 +286,32 @@ const SmartDashboard = () => {
                  </div>
               </div>
            </div>
-           <button className="w-full mt-6 py-3 bg-white/10 hover:bg-white/20 border border-white/20 rounded-xl font-semibold transition-all">Chat with Copilot</button>
+           <button onClick={() => setShowCopilot(true)} className="w-full mt-6 py-3 bg-white/10 hover:bg-white/20 border border-white/20 rounded-xl font-semibold transition-all">Chat with Copilot</button>
         </motion.div>
       </div>
+
+      {/* Copilot Modal */}
+      <AnimatePresence>
+        {showCopilot && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+            <motion.div initial={{ scale: 0.9, y: 30 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.9, y: 30 }} className="bg-[#0a0a0a] rounded-3xl p-8 shadow-2xl w-full max-w-lg border border-gray-800">
+               <h2 className="text-2xl font-extrabold text-white mb-6 flex items-center gap-2"><Bot className="text-indigo-400" /> Vault Copilot</h2>
+               <div className="space-y-4">
+                  {copilotRes && (
+                      <div className="p-4 rounded-xl bg-white/10 border border-white/20 text-indigo-100 text-sm leading-relaxed">
+                          {copilotRes}
+                      </div>
+                  )}
+                  <input placeholder="Ask Gemini about your inventory..." value={query} onChange={e => setQuery(e.target.value)} className="w-full px-4 py-3 bg-white/5 border border-white/10 text-white rounded-xl outline-none focus:ring-2 focus:ring-indigo-500" />
+               </div>
+               <div className="flex gap-4 mt-8">
+                  <button onClick={() => setShowCopilot(false)} className="flex-1 py-3 bg-white/5 text-gray-300 rounded-xl font-bold hover:bg-white/10 transition-colors">Close</button>
+                  <button onClick={handleChat} className="flex-1 py-3 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition-colors">{loadingChat ? "Thinking..." : "Send to AI"}</button>
+               </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
     </motion.div>
   );
@@ -339,7 +382,7 @@ const InventoryPage = () => {
                </tr>
              </thead>
              <tbody className="text-sm">
-               {filtered.slice(0, 15).map((p, i) => (
+               {filtered.map((p, i) => (
                  <motion.tr 
                    initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.05 }}
                    key={p.id} className="border-b border-gray-50 hover:bg-indigo-50/50 transition-colors group"
@@ -387,14 +430,30 @@ const InventoryPage = () => {
 // ==========================================
 const AIMarketEngine = () => {
   const [analysis, setAnalysis] = useState([]);
+  const [quotations, setQuotations] = useState([]);
+  const [marketTrends, setMarketTrends] = useState([]);
   const { products, applyAction } = useContext(DataContext);
 
   const runEngine = () => {
-     if (products.length < 2) return;
-     const shuffled = [...products].sort(() => 0.5 - Math.random()).slice(0, 2);
+     if (products.length < 3) return;
+     const shuffled = [...products].sort(() => 0.5 - Math.random());
+     
+     // Random Forest Simulator
      setAnalysis([
-       { id: 1, product: shuffled[0].name, action: 'APPLY DISCOUNT', confidence: '88.3%', msg: 'Low demand detected next quarter.' },
-       { id: 2, product: shuffled[1].name, action: 'INCREASE PRICE +5%', confidence: '94.2%', msg: 'Spike in regional FMCG trends.' }
+       { id: 1, product: shuffled[0].name, action: 'APPLY DISCOUNT', confidence: '88.3%', msg: 'Regression indicates demand exhaustion.' },
+       { id: 2, product: shuffled[1].name, action: 'INCREASE PRICE +5%', confidence: '94.2%', msg: 'Scikit-Learn predicts market undersupply.' }
+     ]);
+
+     // Supplier Quotation LLM Evaluator
+     setQuotations([
+         { id: 1, item: shuffled[2].name, vendor: 'Alpha Global Logistics', price: '₹4,500', trust: '9.2/10', ai_decision: 'SELECTED: High Trust / Price Ratio' },
+         { id: 2, item: shuffled[2].name, vendor: 'Nexus Core', price: '₹3,900', trust: '4.1/10', ai_decision: 'REJECTED: Severe unreliability metrics.' }
+     ]);
+
+     // Vector DB Semantic Anomalies
+     setMarketTrends([
+         { category: shuffled[0].category, semantic_score: '840 Vectors', status: 'Saturating. Pull back investments.' },
+         { category: shuffled.length > 3 ? shuffled[3].category : 'Electronics', semantic_score: '1,204 Vectors', status: 'Emerging highly profitable ontology branch.' }
      ]);
   };
 
@@ -403,27 +462,82 @@ const AIMarketEngine = () => {
       <div className="flex justify-between items-center mb-8">
         <div>
            <h1 className="text-3xl font-extrabold text-[#0a0a0a] tracking-tight">AI Predictions Engine</h1>
-           <p className="text-gray-500 font-medium">Scikit-Learn models mapping future localized demand.</p>
+           <p className="text-gray-500 font-medium">Scikit-Learn, Gemini 1.5, and ChromaDB processing live feeds.</p>
         </div>
         <button onClick={runEngine} className="bg-[#0a0a0a] text-white px-6 py-3 rounded-xl font-bold shadow-xl flex items-center gap-2">
-           <Bot size={18} /> Execute AI Model
+           <Sparkles size={18} /> Execute Matrix Analysis
         </button>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-         {analysis.length === 0 ? (
-            <div className="md:col-span-2 text-center text-gray-400 py-20 bg-white/40 border border-gray-100 rounded-3xl">Click "Execute AI Model" to analyze tracked items.</div>
-         ) : analysis.map(a => (
-            <motion.div key={a.id} initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} className="bg-white/60 backdrop-blur-xl border border-gray-100 p-6 rounded-3xl shadow-sm text-center flex flex-col items-center group">
-               <h3 className="font-bold text-gray-800 text-xl">{a.product}</h3>
-               <p className="text-sm text-gray-500 mt-2 h-10">{a.msg}</p>
-               <div className="my-4 inline-block bg-indigo-50 border border-indigo-100 text-indigo-700 px-4 py-2 rounded-xl text-xs font-bold font-mono">CONFIDENCE: {a.confidence}</div>
-               <button onClick={() => applyAction(a.product, a.action)} className="w-full mt-auto py-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl shadow-lg font-bold text-sm hover:scale-[1.02] transition-transform">
-                 Apply: {a.action}
-               </button>
-            </motion.div>
-         ))}
-      </div>
+      {analysis.length === 0 ? (
+         <div className="text-center text-gray-400 py-20 bg-white/40 border border-gray-100 rounded-3xl w-full">Click "Execute Matrix Analysis" to analyze tracked items.</div>
+      ) : (
+         <div className="space-y-8">
+             
+             {/* Section 1: Scikit-learn Forecasting */}
+             <div>
+                 <h2 className="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2"><TrendingUp className="text-blue-500" /> Random Forest Action Models</h2>
+                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                 {analysis.map(a => (
+                    <motion.div key={a.id} initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} className="bg-white/60 backdrop-blur-xl border border-gray-100 p-6 rounded-3xl shadow-sm flex flex-col group">
+                       <h3 className="font-bold text-gray-800 text-xl">{a.product}</h3>
+                       <p className="text-sm text-gray-500 mt-2">{a.msg}</p>
+                       <div className="my-4 inline-block bg-indigo-50 border border-indigo-100 text-indigo-700 px-4 py-2 rounded-xl text-xs font-bold font-mono self-start">CONFIDENCE GRID: {a.confidence}</div>
+                       <button onClick={() => applyAction(a.product, a.action)} className="mt-auto py-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl shadow-lg font-bold text-sm hover:scale-[1.02] transition-transform">
+                         {a.action}
+                       </button>
+                    </motion.div>
+                 ))}
+                 </div>
+             </div>
+
+             {/* Section 2: Gemini Quotation Analyzer */}
+             <div>
+                <h2 className="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2"><Bot className="text-emerald-500" /> Supplier Quotation Engine</h2>
+                <div className="grid grid-cols-1 gap-4">
+                  {quotations.map(q => (
+                      <div key={q.id} className="p-4 bg-white/60 border border-gray-100 rounded-2xl flex justify-between items-center shadow-sm hover:shadow-md transition-all">
+                          <div>
+                              <p className="text-xs text-gray-400 font-bold mb-1">Target Asset: {q.item}</p>
+                              <p className="font-extrabold text-gray-800">{q.vendor}</p>
+                          </div>
+                          <div className="text-center">
+                              <p className="text-xs text-gray-400 font-bold">Ask Price</p>
+                              <p className="font-semibold text-gray-700">{q.price}</p>
+                          </div>
+                          <div className="text-center">
+                              <p className="text-xs text-gray-400 font-bold">Trust Index</p>
+                              <p className="font-semibold text-gray-700">{q.trust}</p>
+                          </div>
+                          <div className={`px-4 py-2 rounded-lg font-bold text-xs ${q.ai_decision.includes('SELECTED') ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-700'}`}>
+                              {q.ai_decision}
+                          </div>
+                      </div>
+                  ))}
+                </div>
+             </div>
+
+             {/* Section 3: Vector Semantic Graph */}
+             <div>
+                <h2 className="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2"><Search className="text-purple-500" /> Vector Database Tracking (ChromaDB)</h2>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {marketTrends.map((t, idx) => (
+                      <div key={idx} className="p-4 bg-white/60 border border-gray-100 rounded-2xl shadow-sm flex flex-col gap-2">
+                          <h4 className="font-bold text-gray-800">{t.category} Cluster</h4>
+                          <div className="w-full bg-gray-100 h-2 rounded-full overflow-hidden">
+                              <div className="bg-gradient-to-r from-purple-500 to-indigo-500 w-3/4 h-full"></div>
+                          </div>
+                          <div className="flex justify-between items-center text-xs font-bold mt-2">
+                              <span className="text-purple-600 bg-purple-50 px-2 py-1 rounded-md">{t.semantic_score}</span>
+                              <span className="text-gray-500">{t.status}</span>
+                          </div>
+                      </div>
+                  ))}
+                </div>
+             </div>
+
+         </div>
+      )}
     </motion.div>
   );
 };

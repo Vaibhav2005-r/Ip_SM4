@@ -156,9 +156,7 @@ def market_trend(product_name: str):
 
 @app.get("/api/ai/financial-insights")
 def financial_insights():
-    """Generates an executive summary of the inventory portfolio using Gemini."""
-    import urllib.request
-    import json
+    """Generates an executive summary of the inventory portfolio using local LLaMA via Ollama."""
     
     # 1. Fetch live stock from Java Backend
     try:
@@ -166,41 +164,50 @@ def financial_insights():
         with urllib.request.urlopen(req) as response:
             products = json.loads(response.read().decode())
     except Exception as e:
-        return {"insights": ["Unable to bridge to Java Database.", "Network error."]}
+        return {"insights": ["Unable to reach inventory database.", f"Error: {str(e)}"]}
         
     if not products:
-        return {"insights": ["Your global inventory matrix is currently empty.", "Please deploy assets to generate predictions."]}
+        return {"insights": ["Inventory matrix is empty.", "Deploy assets to generate insights."]}
         
-    # 2. Compile metrics
-    total_gross = sum([p.get('price', 0) * (p.get('stock', 50)) for p in products])
-    most_expensive = max(products, key=lambda x: x.get('price', 0)).get('name')
+    # 2. Compile real metrics
+    total_gross = sum(p.get('price', 0) * p.get('stock', 0) for p in products)
     
-    portfolio_summary = f"Total Portfolio Value: INR {total_gross}. Most premium asset: {most_expensive}. Total distinct asset categories: {len(products)}."
+    products_by_value = sorted(products, key=lambda x: x.get('price', 0) * x.get('stock', 0), reverse=True)
+    top_product    = products_by_value[0].get('name', 'N/A') if products_by_value else 'N/A'
+    bottom_product = products_by_value[-1].get('name', 'N/A') if products_by_value else 'N/A'
     
-    # Bypass Regex Push Protections dynamically mapping Key
-    key_part_1 = "AIzaSy"
-    key_part_2 = "D8NDvhYCIp61sx8fvOpfRyeyb2gXImI50"
-    genai.configure(api_key=(key_part_1+key_part_2))
+    low_stock_items = [p['name'] for p in products if p.get('stock', 0) < 20]
+    categories = list(set(p.get('category', '') for p in products))
     
-    prompt = f"""
-    You are a premium SaaS Executive Financial AI Advisor. 
-    Review this company's live portfolio metrics: 
-    {portfolio_summary}
-    
-    Provide EXACTLY 3 extremely concise, highly professional financial insights or recommendations for the admin. 
-    Format them strictly as a JSON array of 3 strings. Example: ["insight 1", "insight 2", "insight 3"]
-    """
+    prompt = f"""You are an expert inventory financial advisor. Analyze this data and provide EXACTLY 3 concise business insights.
+
+Portfolio Data:
+- Total inventory value: INR {total_gross:,.0f}
+- Total products: {len(products)}
+- Categories: {', '.join(categories)}
+- Highest value stock: {top_product}
+- Lowest value stock: {bottom_product}
+- Low stock items (< 20 units): {', '.join(low_stock_items[:5]) if low_stock_items else 'None'}
+
+Respond ONLY with a valid JSON array of exactly 3 strings. No explanation outside the JSON.
+Example: ["insight one here", "insight two here", "insight three here"]"""
     
     try:
         txt = ollama_chat(prompt)
-        clean_text = txt.replace('```json', '').replace('```', '').strip()
-        data = json.loads(clean_text)
-        return {"insights": data}
+        # Extract JSON array from response
+        import re
+        match = re.search(r'\[.*?\]', txt, re.DOTALL)
+        if match:
+            data = json.loads(match.group())
+            return {"insights": data[:3]}
+        # Fallback: split lines if no JSON found
+        lines = [l.strip().strip('"').strip("'") for l in txt.split('\n') if l.strip() and len(l.strip()) > 20]
+        return {"insights": lines[:3]}
     except Exception as e:
         return {"insights": [
-             "Gemini integration active, but payload failed alignment.",
-             f"Error: {str(e)}",
-             "Maintain strong liquid flow on secondary FMCG components."
+            f"Total portfolio value: ₹{total_gross:,.0f}",
+            f"Low stock alert: {len(low_stock_items)} items below threshold.",
+            f"Top performing asset: {top_product}"
         ]}
         
 class ChatRequest(BaseModel):

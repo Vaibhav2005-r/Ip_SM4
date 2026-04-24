@@ -94,7 +94,7 @@ def evaluate_quotes(req: QuotationRequest):
     if req.ai_mode == "GLOBAL":
         engine_used = "Gemini 1.5 Flash (Cloud)"
         try:
-            model = genai.GenerativeModel("gemini-1.5-flash")
+            model = genai.GenerativeModel("gemini-pro")
             response = model.generate_content(prompt)
             # Remove Markdown block wrapping if present
             clean_res = response.text.replace('```json', '').replace('```', '').strip()
@@ -188,7 +188,7 @@ def financial_insights():
     """
     
     try:
-        model = genai.GenerativeModel("gemini-1.5-flash")
+        model = genai.GenerativeModel("gemini-pro")
         res = model.generate_content(prompt)
         # Parse JSON
         clean_text = res.text.replace('```json', '').replace('```', '').strip()
@@ -216,7 +216,7 @@ def chat_copilot(req: ChatRequest):
         The admin asks: '{req.query}'. 
         Keep your response under 3 sentences, extremely concise, and technical."""
         
-        model = genai.GenerativeModel("gemini-1.5-flash")
+        model = genai.GenerativeModel("gemini-pro")
         res = model.generate_content(prompt)
         return {"response": res.text.strip()}
     except Exception as e:

@@ -432,17 +432,23 @@ const AIMarketEngine = () => {
 // 5. FINANCE & AI REPORTS LAYER
 // ==========================================
 const ReportsPage = () => {
-   const pieData = [ {name:'Core Gross Value', val: 75}, {name:'CGST (9%)', val: 12.5}, {name:'SGST (9%)', val: 12.5} ];
+   const { products } = useContext(DataContext);
+   
+   const totalGross = products.reduce((sum, p) => sum + (parseFloat(p.price) || 0) * (p.stock || 50), 0);
+   const cgst = totalGross * 0.09;
+   const sgst = totalGross * 0.09;
+   const realizedNet = totalGross + cgst + sgst;
+
+   const pieData = [ {name:'Core Gross Value', val: totalGross}, {name:'CGST (9%)', val: cgst}, {name:'SGST (9%)', val: sgst} ];
    const colors = ['#0a0a0a', '#4f46e5', '#38bdf8'];
 
    return (
-      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="max-w-7xl mx-auto space-y-6">
-         <div className="flex justify-between items-center mt-4 mb-8">
+      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="max-w-7xl mx-auto space-y-6 mt-4">
+         <div className="flex justify-between items-center mb-8">
             <div>
                <h1 className="text-3xl font-extrabold text-[#0a0a0a] tracking-tight">Financial Intelligence</h1>
-               <p className="text-gray-500 font-medium">Auto-generated cryptographic analysis.</p>
+               <p className="text-gray-500 font-medium">Auto-generated cryptographic analysis and GST tracking.</p>
             </div>
-            {/* Phase 5 Integration Link directly hitting Uvicorn python */}
             <a href="http://localhost:8000/api/reports/generate-pdf" download="IMS_Report.pdf">
               <motion.button whileHover={{ scale: 1.05 }} className="bg-[#0a0a0a] text-white px-6 py-3 rounded-xl font-bold shadow-xl flex items-center gap-2">
                  <FileText size={18} /> Export Cryptographic PDF
@@ -453,8 +459,8 @@ const ReportsPage = () => {
          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <div className="bg-white/60 backdrop-blur-xl border border-gray-100 p-8 rounded-3xl shadow-sm flex flex-col justify-center items-center text-center group">
                <div className="w-16 h-16 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center mb-4 group-hover:scale-110 transition-all duration-300 shadow-sm border border-blue-100"><DollarSign size={32} /></div>
-               <h2 className="text-4xl font-extrabold text-[#0a0a0a] mb-2">₹142,500</h2>
-               <p className="text-gray-500 font-medium">Realized Profit (Last 30 Days)</p>
+               <h2 className="text-4xl font-extrabold text-[#0a0a0a] mb-2">₹{realizedNet.toLocaleString('en-IN', {minimumFractionDigits:2})}</h2>
+               <p className="text-gray-500 font-medium">Total Asset Potential (Net + GST)</p>
                <div className="mt-4 flex gap-2"><span className="bg-green-100 text-green-700 px-3 py-1 rounded-full text-xs font-bold font-mono">+12.4% vs Prev</span></div>
             </div>
 
